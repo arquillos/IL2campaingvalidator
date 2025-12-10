@@ -42,10 +42,6 @@ def main(cli_arguments: AppSettings | None = None) -> None:
     app_config.output_directory.mkdir(parents=True, exist_ok=True)
     logger.debug("Output directory prepared at %s", app_config.output_directory)
 
-    dir_path = Path(__file__).resolve().parent
-    logger.debug("Loading conversion database from %s", dir_path)
-    conversion_db = read_conversion_file(dir_path)
-
     logger.info("Loading standard installation resources")
     aircraft_classes = read_aircraft_classes(app_config.std_path)
     chiefs = read_chiefs(app_config.std_path)
@@ -149,6 +145,10 @@ def main(cli_arguments: AppSettings | None = None) -> None:
                                                 break
 
                                 if app_config.auto_replace_stationary_objects:
+                                    dir_path = Path(__file__).resolve().parent
+                                    logger.debug("Loading conversion database from %s", dir_path)
+                                    conversion_db = read_conversion_file(dir_path)
+
                                     for item, replacement in conversion_db.items():
                                         if f"{item} " in line:
                                             line = line.replace(item, replacement)
