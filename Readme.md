@@ -83,6 +83,12 @@ What to do if you open up a campaign and it's full of errors? Who wants to sit f
 ### Requirements
 - Python 3.14
 
+### Download code
+```bash
+git clone git@github.com:arquillos/IL2campaingvalidator.git
+cd IL2campaingvalidator
+```
+
 ### Installation of a virtual environment
 ```bash
 python3 -m venv .venv
