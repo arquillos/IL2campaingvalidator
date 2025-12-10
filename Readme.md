@@ -6,6 +6,9 @@ Based in the work of andqui
 ---
 
 ## Script Execution
+First: edit the `settings.ini` file and set the proper PATHs
+
+
 ```bash
 # Activate the python virtual environment in a powershell 
 .\.venv\Scripts\Activate.ps1
@@ -21,12 +24,16 @@ pip install -r requirements.txt  # This command is needed only once
 python .\cli.py
 ```
 
+
 The script will read the settings from the `settings.ini`file and display them
 The user will have the option to modify the settings manually
 - `Modify any setting? [y/N]:`
 
 The "Final" settings will be displayed and the user have the option to execute the campaign validator or abort the execution
 - `Proceed with these settings? [Y/n]:`
+
+The report is in the "output" folder (by default)
+
 
 Important!
 When the script finished the execution you may get printed issues like these ones:
