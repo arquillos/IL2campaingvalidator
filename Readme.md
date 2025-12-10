@@ -28,6 +28,16 @@ The user will have the option to modify the settings manually
 The "Final" settings will be displayed and the user have the option to execute the campaign validator or abort the execution
 - `Proceed with these settings? [Y/n]:`
 
+Important!
+When the script finished the execution you may get printed issues like these ones:
+```
+Failed to decode e:\IL-2 Sturmovik 1946 v4.15.1\MODS\STD\com\maddox\il2\objects\chief.ini as UTF-8; retrying with Windows-1251 encoding
+Failed to decode e:\IL-2 Sturmovik 1946 v4.15.1\MODS\STD\com\maddox\il2\objects\static.ini as UTF-8; retrying with Windows-1251 encoding
+```
+The script worked fine!
+Those issues are not error. The script is complaining regarding the encoding format of those files.
+They are there for debugging purposes only.
+
 ---
 
 ## SIMPLE INITIAL INSTRUCTIONS
