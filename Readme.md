@@ -34,6 +34,11 @@ The "Final" settings will be displayed and the user have the option to execute t
 
 The report is in the "output" folder (by default)
 
+NEW: In the report folder a file with name `add_to_static.ini` is created with the missing static objects definitions.
+This can be added to the end of your `static.ini` file to help fixing the issues with your IL-2 installation. 
+- You will need to add the missing objects into the `3do/Buildings/` directory
+Note: This feature will use the "static.ini" file included in the `base` directory. The BAT 4.3 version file is provided. Replace with any other file you may need.
+
 
 Important!
 When the script finished the execution you may get printed issues like these ones:

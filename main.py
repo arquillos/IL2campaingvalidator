@@ -13,6 +13,7 @@ from conversions.static_conversions import read_conversion_file
 from missions.missions import read_mission, read_missions
 from objects.objects import read_objects
 from report.report import (
+    generate_missing_objects_ini,
     log_buildings,
     log_chiefs,
     log_planes_details,
@@ -61,6 +62,8 @@ def main(cli_arguments: AppSettings | None = None) -> None:
     mission_list = read_missions(app_config.campaign_path)
     logger.info("Discovered %d missions to analyze", len(mission_list))
 
+    campaign_missing_objects: set[str] = set()
+
     with app_config.output_path.open("w", encoding="utf-8") as output_stream:
         with redirect_stdout(output_stream):
             for mission_path in mission_list:
@@ -87,7 +90,10 @@ def main(cli_arguments: AppSettings | None = None) -> None:
                     mission_data.aircraft, aircraft_classes, skins, weapons
                 )
                 log_planes_without_markings(mission_data.stat_planes_without_markings)
-                log_buildings(mission_data.buildings, objects)
+                missing_objects = log_buildings(mission_data.buildings, objects)
+
+                if missing_objects:
+                    campaign_missing_objects |= missing_objects
 
                 # Auto-Fixes
                 player_squadron = mission_data.player_squadron
@@ -192,6 +198,12 @@ def main(cli_arguments: AppSettings | None = None) -> None:
                 logger.info("Finished mission %s", mission_name)
 
 
+    if campaign_missing_objects:
+        logging.info("Generating 'ini' file with missing buildings")
+        generate_missing_objects_ini(
+            campaign_missing_objects, app_config.output_directory
+        )
+
 if __name__ == "__main__":
-    logging.basicConfig(stream=sys.stdout, level=logging.INFO)
+    logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
     main()
