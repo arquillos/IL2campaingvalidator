@@ -1,9 +1,10 @@
 """Helpers for reading campaign mission listings."""
 
 import logging
+import sys
 
 from pathlib import Path
-from typing import Iterable
+from typing import Iterable, List
 
 from .mission_data import MissionAircraft, MissionData, MissionDate
 
@@ -18,38 +19,54 @@ def _iter_mission_tokens(lines: Iterable[str]) -> Iterable[str]:
                 yield token.rstrip()
 
 
-def read_missions(root: str | Path) -> list[Path]:
+def read_missions(campaign_path: Path) -> list[Path]:
     """Return the list of mission file paths defined in campaign.ini."""
+    campaign_ini = campaign_path / "campaign.ini"
+    # Check file
+    if not campaign_ini.exists():
+        logger.error("Can not find the path to the campaign.ini file: %s", campaign_ini)
+        sys.exit(1)
 
-    root_path = Path(root)
-    campaign_ini_path = root_path / "campaign.ini"
-    logger.info("Loading missions from %s", campaign_ini_path)
+    logger.info("Loading missions from %s", campaign_ini)
 
     mission_paths: list[Path] = []
 
-    try:
-        with campaign_ini_path.open(encoding="utf-8") as handle:
-            for token in _iter_mission_tokens(handle):
-                mission_paths.append(root_path / token)
-    except FileNotFoundError:
-        logger.exception("campaign.ini not found at %s", campaign_ini_path)
-        raise
+    in_list_section = False
+    with campaign_ini.open(encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+
+            if in_list_section:
+                if line.endswith(".mis"):  # Skipping TRACKS
+                    logger.debug("Adding mission: %s", line)
+                    mission_paths.append(campaign_path / line)
+
+            # Skip lines until the list section
+            if not line or line != "[list]":
+                continue
+
+            # Skip the list header line
+            if line == "[list]":
+                in_list_section = True
+                continue
 
     logger.debug("Discovered %d missions", len(mission_paths))
+    logger.debug("Missions: %s", mission_paths)
     return mission_paths
 
-def read_mission(mission_path: str | Path) -> MissionData:
+
+def read_mission(mission_path: Path) -> MissionData:
     """Read a mission file and extract relevant data."""
 
-    path = Path(mission_path)
-    logger.info("Reading mission file %s", path)
+    logger.info("Reading mission file %s", mission_path)
+
+    # All the missions configured in the campaign should exits
+    if not mission_path.exists:
+        logger.exception("Mission file not found: %s. Check the campaing file", mission_path)
+        sys.exit(1)
 
     # Read all lines from the mission file
-    try:
-        lines = path.read_text(encoding="utf-8").splitlines()
-    except FileNotFoundError:
-        logger.exception("Mission file not found: %s", path)
-        raise
+    lines: List[str] = mission_path.read_text(encoding="utf-8").splitlines()
 
     aircraft_entries: list[MissionAircraft] = []
     stat_planes_without_markings: list[str] = []
@@ -72,32 +89,36 @@ def read_mission(mission_path: str | Path) -> MissionData:
         raw_line = lines[idx]
 
         # Strip whitespace and convert to lowercase
-        stripped = raw_line.strip()
-        lower_line = stripped.lower()
+        lower_line = raw_line.strip().lower()
         idx += 1
 
-        if not stripped:
+        # Skipping empty lines
+        if not lower_line:
             continue
 
+        # Player Squadron
         if "player " in lower_line:
-            tokens = stripped.split()
+            tokens = lower_line.split()
             if len(tokens) > 1:
                 player_sqdn = tokens[1]
                 logger.debug("Player squadron detected: %s", player_sqdn)
             continue
 
+        # Map name
+        # Exmaple: MAP KM_Nordbayern/load.ini
         if lower_line == "[main]":
-            if idx < total_lines:
-                map_tokens = lines[idx].strip().split()
-                if len(map_tokens) > 1:
-                    map_name = map_tokens[1]
+            map_found = False
+            while not map_found:
+                if lines[idx].strip().startswith("MAP "):
+                    map_found = True
+                    map_name = lines[idx].split("MAP ")[1]
                     logger.debug("Mission map detected: %s", map_name)
                 else:
-                    logger.warning("[Main] section missing map entry in %s", path.name)
-            else:
-                logger.warning("[Main] section incomplete near end of file in %s", path.name)
-            idx += 1
-            continue
+                    if idx < total_lines:
+                        idx += 1
+                    else:
+                        logger.warning("[Main] section missing map entry in %s", mission_path)
+                        sys.exit(1)
 
         if lower_line == "[season]":
             if idx + 2 < total_lines:
@@ -114,7 +135,7 @@ def read_mission(mission_path: str | Path) -> MissionData:
 
                 logger.debug("Mission date: %s-%s-%s", date_year, date_month, date_day)
             else:
-                logger.warning("[Season] section incomplete in %s", path.name)
+                logger.warning("[Season] section incomplete")
             idx += 3
             continue
 
@@ -132,8 +153,8 @@ def read_mission(mission_path: str | Path) -> MissionData:
                 idx += 1
             continue
 
-        if stripped.startswith("[") and stripped.endswith("]"):
-            section_name = stripped[1:-1]
+        if lower_line.startswith("[") and lower_line.endswith("]"):
+            section_name = lower_line[1:-1]
             if section_name in wing_sections:
                 skin_set: set[str] = set()
                 aircraft_code = ""
@@ -245,15 +266,15 @@ def read_mission(mission_path: str | Path) -> MissionData:
         mission_date = MissionDate(year=date_year, month=date_month, day=date_day)
 
     if not player_sqdn:
-        logger.warning("Player squadron not found in %s", path.name)
+        logger.warning("Player squadron not found")
     if map_name is None:
-        logger.warning("Map not detected in %s", path.name)
+        logger.warning("Map not detected")
     if mission_date is None:
-        logger.warning("Date not fully specified in %s", path.name)
+        logger.warning("Date not fully specified")
 
     logger.debug(
         "Mission summary for %s: aircraft=%d, chiefs=%d, stationaries=%d, buildings=%d, wings=%d",
-        path.name,
+        mission_path,
         len(aircraft_entries),
         len(chiefs_list),
         len(stationaries_list),
@@ -262,7 +283,7 @@ def read_mission(mission_path: str | Path) -> MissionData:
     )
 
     return MissionData(
-        path=path,
+        path=mission_path,
         map_name=map_name,
         date=mission_date,
         date_is_custom=date_is_custom,

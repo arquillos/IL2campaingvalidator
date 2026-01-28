@@ -20,6 +20,18 @@ def log_used_aircrafts(aircrafts: list[str], full_report: bool) -> None:
         else:
             print("Aircraft used:\n\tNone")
 
+
+def log_squadrons(wing_sections: list[str], full_report: bool) -> None:
+    """ Log the Wings used in a mission """
+    sorted_wings = sorted({entry for entry in wing_sections})
+
+    if full_report:
+        if sorted_wings:
+            print("Wings:\n" + "\n".join(f"\t{wing}" for wing in sorted_wings))
+        else:
+            print("Wings used:\n\tNone")
+
+
 def log_chiefs(chiefs: list[str], full_report: bool) -> None:
     """ Log the defined chiefs in a mission """
     sorted_chiefs = sorted(chiefs)
@@ -57,31 +69,38 @@ def log_planes_details(
     aircraft_classes: list[str],
     skins: dict[str, list[str]],
     weapons: dict[str, list[str]],
-) -> None:
+) -> set[str]:
     """ Log the details for the aircrafts in a mission """
+    missing_aircrafts: set[str] = set()
+
+    print("### Aircrafts - Not found:")
     for aircraft in aircrafts:
         aircraft_code = aircraft.aircraft_code
         aircraft_name = aircraft_classes.get(aircraft_code)
         if aircraft_name is None:
-            print(f"###Aircraft {aircraft_code} not found!")
+            print(f"\t{aircraft_code}")
+            missing_aircrafts.add(aircraft_name)
             continue
 
         skin_key = aircraft_name.lower()
         available_skins = skins.get(skin_key)
+        print("### Skins - Missing:")
         for skin in sorted(aircraft.skins):
             if not available_skins or skin not in available_skins:
-                print(f"###Skin {skin} for {aircraft_code} not found!")
+                print(f"\t{skin} for {aircraft_code}")
 
         weapon_options = weapons.get(aircraft_name)
         if weapon_options is None or aircraft.weapon_code not in weapon_options:
-            print(f"###Weapon {aircrafts.weapon_code} for {aircraft_code} not found!")
+            print(f"\t - {aircraft_code}: Weapon {aircraft.weapon_code} not found")
+
+    return missing_aircrafts
 
 
 def log_planes_without_markings(stat_planes_without_markings: list[str]) -> None:
     """ Log the planes without markings in a mission """
     stat_planes_without_markings = sorted(set(stat_planes_without_markings))
     if stat_planes_without_markings:
-        print("###These stationary planes have no markings:")
+        print("### Stationary planes without markings:")
         for stat_plane_name in stat_planes_without_markings:
             print(f"\t{stat_plane_name}")
 
@@ -90,12 +109,14 @@ def log_buildings(buildings: list[str], objects: list[str]) -> set[str]:
     """ Log the missing buildings in a mission """
     missing_buildings = set()
 
+
     for building in sorted(buildings):
         if building not in objects:
             missing_buildings.add(building)
 
+    print("### Static objects - Not found")
     for building in sorted(list(missing_buildings)):
-        print(f"###Missing static object {building}")
+        print(f"\t{building}")
 
     # TODO: Improve the method
     return set(sorted(list(missing_buildings)))
@@ -134,7 +155,7 @@ def generate_missing_objects_ini(
                 # Commit previous section if present
                 if current_section_name is not None:
                     sections[current_section_name] = current_section_lines[:]
-                
+
                 # Start new section
                 current_section_name = stripped[1:-1]
                 current_section_lines = [line]  # include header line with original formatting
@@ -181,4 +202,35 @@ def generate_missing_objects_ini(
     if wrote_any:
         print(f"Missing static objects written to {output_path}")
     else:
-        print("###No matching sections found to write.")
+        print("### No matching sections found to write.")
+
+
+def _convert_wing_to_reg(wing: str) -> str:
+    """
+    Convert the wing value to regInfo.propertie format
+    Examples:
+     - Wing: CA_NN01 -> CA_NN
+     - Wing: CA_NN10 -> CA_NN
+     - Wing: III_KG7603 -> III_KG76
+     - Wing: I_SAGr12500 -> I_SAGr125
+    """
+    if len(wing) < 5:
+        return wing
+
+    return wing[0:-2]
+
+
+def log_missing_squadrons(wing_sections: list[str], squadrons: list[str]) -> None:
+    """ Log the missing Wings """
+    missing_wings = set()
+
+    for wing in wing_sections:
+        squadron = _convert_wing_to_reg(wing)
+        if squadron not in squadrons:
+            missing_wings.add(squadron)
+
+
+    if missing_wings:
+        print("### Wings - Not configured")
+        for wing in missing_wings:
+            print(f"Wing: {wing}")
