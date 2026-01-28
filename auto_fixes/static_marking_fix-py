@@ -1,0 +1,53 @@
+""""""
+
+import logging
+
+from pathlib import Path
+
+logger = logging.getLogger(__name__)
+
+
+def fix_static_markings(output_directory: Path, mission_name: str, mission_path: Path):
+    """
+    Auto-fix the missing markings for static planes 
+    v4.12
+    0_Static vehicles.planes.Plane$FI_156 2 149717.88 104298.02 254.10 0.0 null 1 1.0 null 1 // marked
+    1_Static vehicles.planes.Plane$FI_156 2 149729.30 104308.02 254.10 0.0 null 1 1.0 null 0 // unmarked
+
+    v4.10
+    0_Static vehicles.planes.Plane$FI_156 2 149924.42 104187.64 360.00 0.0 null
+    1_Static vehicles.planes.Plane$FI_156 0 149930.66 104206.04 360.00 0.0 nn
+    """
+    output_mission_path = output_directory / mission_name
+    if not output_mission_path.exists():
+        logger.debug("Applying auto-fixes for mission %s", mission_name)
+        with mission_path.open(encoding="utf-8") as mission_file,\
+            output_mission_path.open("x", encoding="utf-8") as mission_copy:
+
+            for line in mission_file:
+                if "vehicles.planes" in line:
+                    line_data = line.split()
+
+                    if len(line_data) >= 2:
+                        if line_data[-1] == "0" and line_data[-2].lower() == "null":
+                            line = line.rstrip()[:-1] + "1\n"
+                            logger.debug(
+                                "Mission %s auto-fix corrected markings for %s",
+                                mission_name,
+                                line_data[1],
+                            )
+                        elif line_data[-1].lower() == "null":
+                            line = line.rstrip() + " 1\n"
+                            logger.debug(
+                                "Mission %s auto-fix appended markings for %s",
+                                mission_name,
+                                line_data[1],
+                            )
+
+                mission_copy.write(line)
+    else:
+        logger.debug(
+            "Skipped auto-fixes for %s, output already exists at %s",
+            mission_name,
+            output_mission_path,
+        )

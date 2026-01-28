@@ -16,6 +16,7 @@ class AppSettings:
     std_path: Path
     skin_path: Path
     campaign_path: Path
+    maps_path_folder: Path
     output_directory: Path
     output_path: Path
     auto_correct_static_markings: bool
@@ -27,6 +28,7 @@ class AppSettings:
         return f"\n\tSTD path: {self.std_path}" \
         f"\n\tSkins path:{self.skin_path}" \
         f"\n\tCampaign path: {self.campaign_path}" \
+        f"\n\tMaps path: {self.maps_path_folder}" \
         "\n\tSwitches" \
         f"\n\t - Fix Static markings: {'Yes' if self.auto_correct_static_markings else 'No'}" \
         f"\n\t - Replace Stationary objects: {'Yes' if self.auto_replace_stationary_objects else 'No'}" \
@@ -61,6 +63,7 @@ def read_app_settings() -> AppSettings:
     campaign_path = _path("CAMPAIGN_PATH_FOLDER")
     output_directory = _path("OUTPUT_PATH_FOLDER")
     output_path = output_directory / "CampaignAnalyzerOutput.txt"
+    maps_path_folder = _path("MAPS_PATH_FOLDER")
 
     def _flag(option: str) -> bool:
         return section.getint(option, fallback=0) != 0
@@ -69,6 +72,7 @@ def read_app_settings() -> AppSettings:
         std_path=std_path,
         skin_path=skin_path,
         campaign_path=campaign_path,
+        maps_path_folder=maps_path_folder,
         output_directory=output_directory,
         output_path=output_path,
         auto_correct_static_markings=_flag("AUTO_CORRECT_STATIC_AIRCRAFT_MARKINGS"),

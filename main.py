@@ -6,22 +6,26 @@ from contextlib import redirect_stdout
 from pathlib import Path
 import sys
 
-from aircraft.aircraft import read_aircraft_classes
+from aircraft.aircraft import read_aircrafts
 from chiefs.chiefs import read_chiefs
 from config.app_settings import read_app_settings, AppSettings
 from conversions.static_conversions import read_conversion_file
+from maps.maps import read_maps
 from missions.missions import read_mission, read_missions
 from objects.objects import read_objects
 from report.report import (
     generate_missing_objects_ini,
     log_buildings,
     log_chiefs,
+    log_missing_squadrons,
     log_planes_details,
     log_planes_without_markings,
     log_stationaries,
-    log_used_aircrafts
+    log_used_aircrafts,
+    log_squadrons
 )
 from skins.skins import read_skins
+from squadrons.squadrons import read_squadrons
 from stationary.stationary import read_stationaries
 from weapons.weapons import read_weapons
 
@@ -44,36 +48,56 @@ def main(cli_arguments: AppSettings | None = None) -> None:
     logger.debug("Output directory prepared at %s", app_config.output_directory)
 
     logger.info("Loading standard installation resources")
-    aircraft_classes = read_aircraft_classes(app_config.std_path)
+    aircrafts = read_aircrafts(app_config.std_path)
     chiefs = read_chiefs(app_config.std_path)
     skins = read_skins(app_config.skin_path)
     stationaries = read_stationaries(app_config.std_path)
     objects = read_objects(app_config.std_path)
     weapons = read_weapons(app_config.std_path)
+    squadrons = read_squadrons(app_config.std_path)
+    maps = read_maps(app_config.maps_path_folder)
+
     logger.info(
-        "Resource counts | aircraft=%d chiefs=%d stationaries=%d objects=%d weapons=%d",
-        len(aircraft_classes),
+        "Resource counts | aircraft=%d chiefs=%d stationaries=%d objects=%d weapons=%d squadrons=%d maps=%d",
+        len(aircrafts),
         len(chiefs),
         len(stationaries),
         len(objects),
         len(weapons),
+        len(squadrons),
+        len(maps)
     )
 
-    mission_list = read_missions(app_config.campaign_path)
+    campaign_path = Path(app_config.campaign_path)
+    # Check directory
+    if not campaign_path.exists():
+        logger.error("Can not find the path to the campaign: %s", campaign_path)
+        sys.exit(1)
+
+    mission_list: list[Path] = read_missions(campaign_path)
     logger.info("Discovered %d missions to analyze", len(mission_list))
 
+
+    mission_missing_objects: set[str] = set()
     campaign_missing_objects: set[str] = set()
+    campaign_missing_aircrafts: set[str] = set()
+    missing_maps: set[str] = set()
 
     with app_config.output_path.open("w", encoding="utf-8") as output_stream:
         with redirect_stdout(output_stream):
             for mission_path in mission_list:
+                missing_aircrafts: set[str] = set()
+
                 mission_name = mission_path.name
                 logger.info("Analyzing mission %s", mission_name)
                 mission_data = read_mission(mission_path)
-                print(f"Reading mission {mission_name}")
 
+                print(f"Reading mission {mission_name}")
                 if mission_data.map_name:
                     print(f"Mission Map = {mission_data.map_name}")
+                    if mission_data.map_name not in maps:
+                        print(f"Missing Map = {mission_data.map_name}")
+                        missing_maps.add(mission_data.map_name)
 
                 if mission_data.date and mission_data.date_is_custom:
                     mission_date = mission_data.date
@@ -84,16 +108,16 @@ def main(cli_arguments: AppSettings | None = None) -> None:
                     print("###Mission Date not set")
 
                 log_used_aircrafts(mission_data.aircraft, app_config.report_format)
+                log_squadrons(mission_data.wing_sections, app_config.report_format)
                 log_chiefs(mission_data.chiefs, app_config.report_format)
                 log_stationaries(mission_data.stationaries, app_config.report_format)
-                log_planes_details(
-                    mission_data.aircraft, aircraft_classes, skins, weapons
-                )
+                missing_aircrafts = log_planes_details(mission_data.aircraft, aircrafts, skins, weapons)
                 log_planes_without_markings(mission_data.stat_planes_without_markings)
+                log_missing_squadrons(mission_data.wing_sections, squadrons)
                 missing_objects = log_buildings(mission_data.buildings, objects)
 
                 if missing_objects:
-                    campaign_missing_objects |= missing_objects
+                    mission_missing_objects |= missing_objects
 
                 # Auto-Fixes
                 player_squadron = mission_data.player_squadron
@@ -197,12 +221,29 @@ def main(cli_arguments: AppSettings | None = None) -> None:
                 print()
                 logger.info("Finished mission %s", mission_name)
 
+                campaign_missing_objects |= mission_missing_objects
+                campaign_missing_aircrafts |= missing_aircrafts
 
     if campaign_missing_objects:
         logging.info("Generating 'ini' file with missing buildings")
         generate_missing_objects_ini(
             campaign_missing_objects, app_config.output_directory
         )
+
+    if missing_maps:
+        print("### Missing maps:")
+        for missing_map in missing_maps:
+            print(f"- {missing_map}")
+    else:
+        print("### Missing maps: None")
+
+    if campaign_missing_aircrafts and campaign_missing_aircrafts != {None}:
+        print("Missing aircrafts:")
+        for missing_aircraft in campaign_missing_aircrafts:
+            print(f"- {missing_aircraft}")
+    else:
+        print("### Missing aircrafts: None")
+
 
 if __name__ == "__main__":
     logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)

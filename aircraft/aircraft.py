@@ -24,8 +24,8 @@ def _parse_aircraft(handle: TextIO) -> dict[str, str]:
     return aircraft_classes
 
 
-def read_aircraft_classes(root: str | Path) -> dict[str, str]:
-    """Read aircraft class and proper names."""
+def read_aircrafts(root: str | Path) -> dict[str, str]:
+    """Read aircrafts and proper names."""
 
     return load_resource(
         root,
