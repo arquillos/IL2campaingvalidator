@@ -1,4 +1,6 @@
 # CHANGELOG
+28-01-2026 - v1.3
+- **New feature**: Missing maps and aircrafts report at command line
 11-12-2026 - v1.2
 - **New feature**: The missing objects are added to a `_add_to_static.ini` file
 09-12-2026 - v1.1
