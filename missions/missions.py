@@ -266,11 +266,11 @@ def read_mission(mission_path: Path) -> MissionData:
         mission_date = MissionDate(year=date_year, month=date_month, day=date_day)
 
     if not player_sqdn:
-        logger.warning("Player squadron not found")
+        logger.debug("Player squadron not found")
     if map_name is None:
-        logger.warning("Map not detected")
+        logger.debug("Map not detected")
     if mission_date is None:
-        logger.warning("Date not fully specified")
+        logger.debug("Date not fully specified")
 
     logger.debug(
         "Mission summary for %s: aircraft=%d, chiefs=%d, stationaries=%d, buildings=%d, wings=%d",
